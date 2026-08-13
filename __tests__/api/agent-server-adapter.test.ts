@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isAbsolute } from "node:path";
 import { CANVAS_UI_CLIENT_TOOL_NAME } from "#/constants/canvas-ui";
 import { LAUNCH_CHILD_CONVERSATION_TOOL_NAME } from "#/constants/child-conversation";
 
@@ -184,8 +185,8 @@ describe("buildStartConversationRequest", () => {
       // source must be an absolute path to the skill's SKILL.md so the
       // Python agent-server can resolve bundled resources (scripts/, references/).
       const source = skill.source as string;
-      expect(source).toMatch(/^\//);
-      expect(source).toMatch(
+      expect(isAbsolute(source)).toBe(true);
+      expect(source.replaceAll("\\", "/")).toMatch(
         new RegExp(`/${skill.name as string}/SKILL\\.md$`),
       );
       expect(skill).toHaveProperty("is_agentskills_format", true);
@@ -1317,6 +1318,35 @@ describe("agent_settings runtime services suffix", () => {
     expect(
       payload.agent_settings.agent_context.system_message_suffix as string,
     ).toContain("<RUNTIME_SERVICES>");
+  });
+
+  it("preserves a configured policy suffix when runtime services are appended", () => {
+    const payload = buildStartConversationRequest({
+      settings: {
+        ...DEFAULT_SETTINGS,
+        agent_settings: {
+          ...DEFAULT_SETTINGS.agent_settings,
+          agent_context: {
+            system_message_suffix: "Use agentcore-gateway as the only MCP boundary.",
+          },
+        },
+      },
+      runtimeServicesInfo: {
+        mode: "dev:automation",
+        services: {
+          agent_server: { url_from_agent: "http://localhost:18000" },
+        },
+      },
+    }) as {
+      agent_settings: { agent_context: Record<string, unknown> };
+    };
+
+    const suffix = String(
+      payload.agent_settings.agent_context.system_message_suffix,
+    );
+    expect(suffix).toContain("Use agentcore-gateway as the only MCP boundary.");
+    expect(suffix).toContain("<RUNTIME_SERVICES>");
+    expect(suffix).toContain("\n\n<RUNTIME_SERVICES>");
   });
 });
 

@@ -742,6 +742,16 @@ function buildAgentContext(
   const runtimeServicesSuffix =
     buildRuntimeServicesSystemSuffix(runtimeServicesInfo);
   const existingContext = toRecord(agentSettings.agent_context);
+  const configuredSystemSuffix =
+    typeof existingContext.system_message_suffix === "string"
+      ? existingContext.system_message_suffix.trim()
+      : "";
+  const systemMessageSuffix = [
+    configuredSystemSuffix,
+    runtimeServicesSuffix?.trim() ?? "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   // Merge bundled public skills with any skills already present in the
   // agent context (e.g. user-defined skills set via the settings API).
@@ -769,8 +779,8 @@ function buildAgentContext(
     load_public_skills: false,
     load_user_skills: true,
     load_project_skills: true,
-    ...(runtimeServicesSuffix
-      ? { system_message_suffix: runtimeServicesSuffix }
+    ...(systemMessageSuffix
+      ? { system_message_suffix: systemMessageSuffix }
       : {}),
   };
 }
