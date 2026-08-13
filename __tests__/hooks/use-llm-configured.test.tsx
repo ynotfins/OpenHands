@@ -36,6 +36,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe("useLlmConfigured (local, agent-profile-driven)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
     useConfigMock.mockReturnValue({ data: { feature_flags: {} } });
     useActiveBackendMock.mockReturnValue({
       backend: { kind: "local", id: "b1" },
@@ -159,6 +160,38 @@ describe("useLlmConfigured (local, agent-profile-driven)", () => {
       activeProfile: {
         agent_kind: "openhands",
         llm_profile_ref: "B",
+        name: "default",
+      },
+    });
+
+    const { result } = renderHook(() => useLlmConfigured(), { wrapper });
+    expect(result.current.isConfigured).toBe(false);
+  });
+
+  it("is configured for an existing local profile when launcher-managed environment auth is enabled", () => {
+    vi.stubEnv("VITE_LLM_AUTH_FROM_ENV", "true");
+    useLlmProfilesMock.mockReturnValue(
+      llmProfiles("pareto-2m", [{ name: "pareto-2m", api_key_set: false }]),
+    );
+    useActiveAgentProfileMock.mockReturnValue({
+      activeProfile: {
+        agent_kind: "openhands",
+        llm_profile_ref: "pareto-2m",
+        name: "default",
+      },
+    });
+
+    const { result } = renderHook(() => useLlmConfigured(), { wrapper });
+    expect(result.current.isConfigured).toBe(true);
+  });
+
+  it("does not let environment-managed auth bypass a missing local profile", () => {
+    vi.stubEnv("VITE_LLM_AUTH_FROM_ENV", "true");
+    useLlmProfilesMock.mockReturnValue(llmProfiles("missing", []));
+    useActiveAgentProfileMock.mockReturnValue({
+      activeProfile: {
+        agent_kind: "openhands",
+        llm_profile_ref: "missing",
         name: "default",
       },
     });

@@ -17,7 +17,8 @@ interface LlmConfiguredResult {
   /**
    * True when the active backend's agent has a usable LLM:
    * - ACP agents own their LLM via a subprocess, so they never need a key.
-   * - OpenHands agents are ready only once an LLM API key has been saved.
+   * - OpenHands agents need either a saved credential or an explicitly
+   *   launcher-managed provider environment with an existing model profile.
    * - When the LLM settings page is hidden by a feature flag there is no
    *   place to finish setup, so we treat the LLM as configured to avoid
    *   surfacing an actionless warning.
@@ -55,6 +56,8 @@ export function useLlmConfigured(): LlmConfiguredResult {
   } = useLlmProfiles();
   const { backend, orgId } = useActiveBackend();
   const isLocal = backend.kind === "local";
+  const environmentManagedAuth =
+    isLocal && import.meta.env.VITE_LLM_AUTH_FROM_ENV === "true";
 
   // The active AgentProfile is the current agent — an ACP profile owns its LLM
   // via the subprocess and never needs an API key. Fall back to the global
@@ -101,7 +104,10 @@ export function useLlmConfigured(): LlmConfiguredResult {
     );
   const hasActiveProfileApiKey = activeProfile?.api_key_set === true;
   const shouldLoadActiveProfileDetail =
-    isLocal && !!activeProfile && !hasActiveProfileApiKey;
+    isLocal &&
+    !!activeProfile &&
+    !hasActiveProfileApiKey &&
+    !environmentManagedAuth;
   const {
     data: activeProfileDetail,
     isLoading: activeProfileDetailLoading,
@@ -133,11 +139,17 @@ export function useLlmConfigured(): LlmConfiguredResult {
   // backed by an active profile that still exists and is authenticated. API-key
   // profiles use the list endpoint's api_key_set flag; subscription profiles
   // intentionally have no key, so we inspect the active profile detail config.
+  // A trusted local launcher may instead supply provider credentials to the
+  // process and opt in with VITE_LLM_AUTH_FROM_ENV; the profile must still
+  // exist, preventing the flag from masking a broken model configuration.
   // The raw settings key can be a stale copy left behind by a deleted profile
   // (settings are not cleared on delete), so we don't count it here. Cloud
   // backends don't use profiles and keep the settings-key signal.
   const hasUsableActiveProfile =
-    hasActiveProfileApiKey || hasActiveProfileSubscription;
+    !!activeProfile &&
+    (hasActiveProfileApiKey ||
+      hasActiveProfileSubscription ||
+      environmentManagedAuth);
   const hasUsableLlm = isLocal ? hasUsableActiveProfile : hasApiKey;
 
   // Treat a fetch failure as indeterminate (same as loading) only when it
