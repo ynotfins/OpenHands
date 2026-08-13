@@ -43,3 +43,7 @@ build-fresh/
 /resources/bin/
 # Downloaded Node.js distribution (populated by `npm run download-node` before packaging)
 /resources/node/
+
+# Local project MCP / OpenHands persistence (do not commit)
+.openhands/
+.cursor/
