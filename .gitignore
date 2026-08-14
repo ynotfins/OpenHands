@@ -47,3 +47,6 @@ build-fresh/
 # Local project MCP / OpenHands persistence (do not commit)
 .openhands/
 .cursor/
+
+# Zoo Code project storage + exported settings (contains API tokens)
+.zoo-code/
